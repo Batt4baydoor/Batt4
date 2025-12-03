@@ -16,39 +16,60 @@
     <div class="w-full max-w-md bg-white rounded-xl shadow-2xl p-6 md:p-8">
         <h1 class="text-3xl font-extrabold text-gray-800 mb-6 text-center">Batt 4 Bay Door</h1>
 
-        <!-- Button Grid: Changed to a single column (grid-cols-1) -->
-        <div class="grid grid-cols-1 gap-4 mb-6">
-            
-            <button id="open-btn" data-action="open" class="btn open-btn bg-green-500 hover:bg-green-600 text-white py-4 rounded-lg font-bold shadow-md transition duration-150 ease-in-out transform hover:scale-[1.02]">
-                OPEN
+        <!-- 1. LOGIN Container (Default View) -->
+        <div id="login-container" class="space-y-4">
+            <h2 class="text-xl font-semibold text-gray-700 text-center">Access Required</h2>
+            <input type="password" id="access-key-input" placeholder="Enter Access Key" class="w-full p-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500">
+            <button id="login-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-bold shadow-md transition duration-150">
+                Log In
             </button>
-            
-            <button id="close-btn" data-action="close" class="btn close-btn bg-red-500 hover:bg-red-600 text-white py-4 rounded-lg font-bold shadow-md transition duration-150 ease-in-out transform hover:scale-[1.02]">
-                CLOSE
-            </button>
-            
-            <button id="stop-btn" data-action="stop" class="btn stop-btn bg-yellow-500 hover:bg-yellow-600 text-gray-800 py-4 rounded-lg font-bold shadow-md transition duration-150 ease-in-out transform hover:scale-[1.02]">
-                STOP
-            </button>
+            <div id="login-status-message" class="text-center text-sm text-red-600 h-6"></div>
+        </div>
 
-            <button id="close30-btn" data-action="close30" class="btn timed-btn bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-lg font-bold shadow-md transition duration-150 ease-in-out transform hover:scale-[1.02]">
-                CLOSE FOR 30s
+
+        <!-- 2. CONTROL Container (Hidden until logged in) -->
+        <div id="control-container" class="hidden">
+            <!-- Button Grid: Changed to a single column (grid-cols-1) -->
+            <div class="grid grid-cols-1 gap-4 mb-6">
+                
+                <button id="open-btn" data-action="open" class="btn open-btn bg-green-500 hover:bg-green-600 text-white py-4 rounded-lg font-bold shadow-md transition duration-150 ease-in-out transform hover:scale-[1.02]">
+                    OPEN
+                </button>
+                
+                <button id="close-btn" data-action="close" class="btn close-btn bg-red-500 hover:bg-red-600 text-white py-4 rounded-lg font-bold shadow-md transition duration-150 ease-in-out transform hover:scale-[1.02]">
+                    CLOSE
+                </button>
+                
+                <button id="stop-btn" data-action="stop" class="btn stop-btn bg-yellow-500 hover:bg-yellow-600 text-gray-800 py-4 rounded-lg font-bold shadow-md transition duration-150 ease-in-out transform hover:scale-[1.02]">
+                    STOP
+                </button>
+
+                <button id="close30-btn" data-action="close30" class="btn timed-btn bg-blue-500 hover:bg-blue-600 text-white py-4 rounded-lg font-bold shadow-md transition duration-150 ease-in-out transform hover:scale-[1.02]">
+                    CLOSE FOR 30s
+                </button>
+            </div>
+            
+            <!-- Logout Button -->
+            <button id="logout-btn" class="w-full text-sm mt-4 text-gray-500 hover:text-red-500 transition duration-150">
+                Log Out
             </button>
         </div>
-        
-        <!-- NEW: Status Message Area -->
+
+        <!-- Status Message Area -->
         <div id="status-message" class="text-center p-3 rounded-lg font-medium transition-all duration-300 h-10">
             <!-- Messages will appear here -->
         </div>
     </div>
 
-    <!-- The Confirmation Modal element is now removed -->
-
     <script>
-        // --- IMPORTANT: BASE_WEBHOOK_URL is now configured with the URL provided by the user.
+        // --- SECURITY WARNING: This is client-side authentication and is NOT SECURE. 
+        // The key is stored in the source code and only prevents casual access.
+        const ACCESS_KEY = "dfrs12"; // <-- CHANGE THIS TO YOUR SECRET KEY!
+        const STORAGE_KEY = "garageAccessGranted"; 
+        // --- END SECURITY WARNING ---
+
         const BASE_WEBHOOK_URL = 'https://io.adafruit.com/api/v2/webhooks/feed/mHSaPrVAdpi9qgT4nLCoMCovNE95'; 
 
-        // The full URLs are constructed without query parameters, as the command is now sent in the POST body.
         const WEBHOOK_URLS = {
             'open': BASE_WEBHOOK_URL,
             'close': BASE_WEBHOOK_URL,
@@ -56,16 +77,60 @@
             'close30': BASE_WEBHOOK_URL,
         };
 
+        const loginContainer = document.getElementById('login-container');
+        const controlContainer = document.getElementById('control-container');
         const statusMessage = document.getElementById('status-message');
+        const loginStatusMessage = document.getElementById('login-status-message');
+        const accessKeyInput = document.getElementById('access-key-input');
+        
         let messageTimeout = null;
 
-        /**
-         * @brief Displays a status message at the bottom of the page and clears it after 5 seconds.
-         * @param {string} message - The message body.
-         * @param {string} type - 'success' or 'error' for coloring.
-         */
+        // --- AUTHENTICATION LOGIC ---
+
+        function showControls() {
+            loginContainer.classList.add('hidden');
+            controlContainer.classList.remove('hidden');
+            loginStatusMessage.textContent = "";
+            accessKeyInput.value = ""; // Clear input after successful login
+        }
+
+        function showLogin() {
+            controlContainer.classList.add('hidden');
+            loginContainer.classList.remove('hidden');
+            statusMessage.textContent = ""; // Clear main status message
+        }
+
+        function attemptLogin() {
+            const enteredKey = accessKeyInput.value.trim();
+            if (enteredKey === ACCESS_KEY) {
+                // Successful login
+                localStorage.setItem(STORAGE_KEY, 'true');
+                showControls();
+            } else {
+                // Failed login
+                loginStatusMessage.textContent = "Invalid Key";
+                accessKeyInput.value = "";
+                accessKeyInput.focus();
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem(STORAGE_KEY);
+            showLogin();
+            setStatusMessage("Logged out successfully.", 'default');
+        }
+
+        function checkLogin() {
+            if (localStorage.getItem(STORAGE_KEY) === 'true') {
+                showControls();
+            } else {
+                showLogin();
+            }
+        }
+
+        // --- STATUS MESSAGE (UNCHANGED) ---
+
         function setStatusMessage(message, type) {
-            // Clear any existing timeout
             if (messageTimeout) {
                 clearTimeout(messageTimeout);
             }
@@ -83,17 +148,14 @@
             statusMessage.className = classes;
             statusMessage.textContent = message;
 
-            // Automatically clear the message after 5 seconds
             messageTimeout = setTimeout(() => {
                 statusMessage.textContent = '';
-                statusMessage.className = "text-center p-3 rounded-lg font-medium transition-all duration-300 h-10"; // Reset to initial class
+                statusMessage.className = "text-center p-3 rounded-lg font-medium transition-all duration-300 h-10";
             }, 5000);
         }
 
-        /**
-         * @brief Sends the HTTP request to the Adafruit IO Webhook.
-         * @param {string} action - The command to execute (e.g., 'open').
-         */
+        // --- COMMAND SENDING (UNCHANGED) ---
+
         async function sendCommand(action) {
             const url = WEBHOOK_URLS[action];
             
@@ -102,16 +164,10 @@
                 return;
             }
 
-            // Prepare the JSON payload for the POST request
-            const payload = {
-                value: action
-            };
-
-            // Display a pending message
+            const payload = { value: action };
             setStatusMessage(`Sending '${action.toUpperCase()}' command...`, 'pending');
 
             try {
-                // Use POST and include the body with the command value
                 const response = await fetch(url, { 
                     method: 'POST',
                     headers: {
@@ -123,11 +179,10 @@
                 if (response.ok) {
                     const message = action === 'close30' 
                         ? 'SUCCESS! Holding "Close" for 30 seconds.' 
-                        : `SUCCESS!`;
+                        : `SUCCESS! Door action: ${action.toUpperCase()} command sent.`;
                     
                     setStatusMessage(message, 'success');
                 } else {
-                    // Check if the body contains meaningful error text
                     let errorText = await response.text();
                     errorText = errorText.substring(0, 100) || 'No details provided.'; 
                     setStatusMessage(`API ERROR: Failed to send command. Status ${response.status}. Error: ${errorText}`, 'error');
@@ -137,7 +192,25 @@
             }
         }
 
-        // Attach event listeners to all buttons with the class 'btn'
+        // --- EVENT LISTENERS ---
+        
+        // Initial check when page loads
+        document.addEventListener('DOMContentLoaded', checkLogin);
+
+        // Login Button Listener
+        document.getElementById('login-btn').addEventListener('click', attemptLogin);
+        
+        // Allow Enter key to submit login
+        accessKeyInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                attemptLogin();
+            }
+        });
+
+        // Logout Button Listener
+        document.getElementById('logout-btn').addEventListener('click', logout);
+
+        // Command Button Listeners
         document.querySelectorAll('.btn').forEach(button => {
             button.addEventListener('click', (event) => {
                 const action = event.currentTarget.getAttribute('data-action');
