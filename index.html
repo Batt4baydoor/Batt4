@@ -122,8 +122,8 @@
 
                 if (response.ok) {
                     const message = action === 'close30' 
-                        ? 'SUCCESS! Holding Close for 30 seconds.' 
-                        : `SUCCESS! Door action: ${action.toUpperCase()} command sent.`;
+                        ? 'SUCCESS! Holding "Close" for 30 seconds.' 
+                        : `SUCCESS!`;
                     
                     setStatusMessage(message, 'success');
                 } else {
