@@ -17,7 +17,7 @@
         <h1 class="text-3xl font-extrabold text-gray-800 mb-6 text-center">Batt 4 Bay Door</h1>
 
         <!-- Button Grid: Changed to a single column (grid-cols-1) -->
-        <div class="grid grid-cols-1 gap-4">
+        <div class="grid grid-cols-1 gap-4 mb-6">
             
             <button id="open-btn" data-action="open" class="btn open-btn bg-green-500 hover:bg-green-600 text-white py-4 rounded-lg font-bold shadow-md transition duration-150 ease-in-out transform hover:scale-[1.02]">
                 OPEN
@@ -35,18 +35,14 @@
                 CLOSE FOR 30s
             </button>
         </div>
-    </div>
-
-    <!-- Confirmation Modal -->
-    <div id="modal" class="fixed inset-0 bg-gray-600 bg-opacity-75 hidden items-center justify-center p-4 z-50">
-        <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-sm">
-            <h2 id="modal-title" class="text-xl font-bold mb-4 text-gray-800"></h2>
-            <p id="modal-message" class="text-gray-600 mb-6"></p>
-            <button id="modal-ok-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg font-semibold transition duration-150">
-                OK
-            </button>
+        
+        <!-- NEW: Status Message Area -->
+        <div id="status-message" class="text-center p-3 rounded-lg font-medium transition-all duration-300 h-10">
+            <!-- Messages will appear here -->
         </div>
     </div>
+
+    <!-- The Confirmation Modal element is now removed -->
 
     <script>
         // --- IMPORTANT: BASE_WEBHOOK_URL is now configured with the URL provided by the user.
@@ -60,28 +56,39 @@
             'close30': BASE_WEBHOOK_URL,
         };
 
-        const modal = document.getElementById('modal');
-        const modalTitle = document.getElementById('modal-title');
-        const modalMessage = document.getElementById('modal-message');
-        const modalOkBtn = document.getElementById('modal-ok-btn');
+        const statusMessage = document.getElementById('status-message');
+        let messageTimeout = null;
 
         /**
-         * @brief Displays the custom confirmation modal.
-         * @param {string} title - The title of the modal.
+         * @brief Displays a status message at the bottom of the page and clears it after 5 seconds.
          * @param {string} message - The message body.
          * @param {string} type - 'success' or 'error' for coloring.
          */
-        function showModal(title, message) {
-            modalTitle.textContent = title;
-            modalMessage.textContent = message;
-            // Use 'flex' to make the modal visible and centered
-            modal.style.display = 'flex'; 
+        function setStatusMessage(message, type) {
+            // Clear any existing timeout
+            if (messageTimeout) {
+                clearTimeout(messageTimeout);
+            }
+
+            let classes = "p-3 rounded-lg font-medium";
+            
+            if (type === 'success') {
+                classes += " bg-green-100 text-green-700 shadow-inner";
+            } else if (type === 'error') {
+                classes += " bg-red-100 text-red-700 shadow-inner";
+            } else {
+                classes += " bg-gray-200 text-gray-600 shadow-inner";
+            }
+
+            statusMessage.className = classes;
+            statusMessage.textContent = message;
+
+            // Automatically clear the message after 5 seconds
+            messageTimeout = setTimeout(() => {
+                statusMessage.textContent = '';
+                statusMessage.className = "text-center p-3 rounded-lg font-medium transition-all duration-300 h-10"; // Reset to initial class
+            }, 5000);
         }
-
-        modalOkBtn.addEventListener('click', () => {
-            modal.style.display = 'none';
-        });
-
 
         /**
          * @brief Sends the HTTP request to the Adafruit IO Webhook.
@@ -91,18 +98,20 @@
             const url = WEBHOOK_URLS[action];
             
             if (!url || url.includes('YOUR_')) {
-                showModal('Error', `Webhook URL for ${action.toUpperCase()} is incomplete. Contact support.`);
+                setStatusMessage(`Error: Webhook URL for ${action.toUpperCase()} is incomplete.`, 'error');
                 return;
             }
 
-            // --- NEW: Prepare the JSON payload for the POST request ---
-            // Adafruit IO Webhook Receiver expects a JSON object with a "value" field.
+            // Prepare the JSON payload for the POST request
             const payload = {
                 value: action
             };
 
+            // Display a pending message
+            setStatusMessage(`Sending '${action.toUpperCase()}' command...`, 'pending');
+
             try {
-                // We now use POST and include the body with the command value
+                // Use POST and include the body with the command value
                 const response = await fetch(url, { 
                     method: 'POST',
                     headers: {
@@ -113,18 +122,18 @@
 
                 if (response.ok) {
                     const message = action === 'close30' 
-                        ? 'Command sent successfully. Door closing sequence initiated for 30 seconds.' 
-                        : `Command sent successfully. Door action: ${action.toUpperCase()}.`;
+                        ? 'SUCCESS! Closing sequence initiated for 30 seconds.' 
+                        : `SUCCESS! Door action: ${action.toUpperCase()} command sent.`;
                     
-                    showModal('Success!', message);
+                    setStatusMessage(message, 'success');
                 } else {
                     // Check if the body contains meaningful error text
                     let errorText = await response.text();
                     errorText = errorText.substring(0, 100) || 'No details provided.'; 
-                    showModal('API Error', `Failed to send command. Server responded with status ${response.status}. Error: ${errorText}. Double-check your Adafruit IO Webhook setup.`);
+                    setStatusMessage(`API ERROR: Failed to send command. Status ${response.status}. Error: ${errorText}`, 'error');
                 }
             } catch (error) {
-                showModal('Connection Error', `Could not reach the webhook server. Check your internet connection. Error: ${error.message}`);
+                setStatusMessage(`CONNECTION ERROR: Could not reach the webhook server. Error: ${error.message}`, 'error');
             }
         }
 
