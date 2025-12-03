@@ -50,15 +50,14 @@
 
     <script>
         // --- IMPORTANT: BASE_WEBHOOK_URL is now configured with the URL provided by the user.
-        const BASE_WEBHOOK_URL = 'https://io.adafruit.com/api/v2/webhooks/feed/hHhGwUpJbyLogeqKbWVnFz37Y1Py'; 
+        const BASE_WEBHOOK_URL = 'https://io.adafruit.com/api/v2/webhooks/feed/mHSaPrVAdpi9qgT4nLCoMCovNE95'; 
 
-        // The full URLs are now constructed by appending the ?value=command query parameter directly 
-        // to the base Webhook Receiver URL (removing the invalid /raw path).
+        // The full URLs are constructed without query parameters, as the command is now sent in the POST body.
         const WEBHOOK_URLS = {
-            'open': BASE_WEBHOOK_URL + '?value=open',
-            'close': BASE_WEBHOOK_URL + '?value=close',
-            'stop': BASE_WEBHOOK_URL + '?value=stop',
-            'close30': BASE_WEBHOOK_URL + '?value=close30',
+            'open': BASE_WEBHOOK_URL,
+            'close': BASE_WEBHOOK_URL,
+            'stop': BASE_WEBHOOK_URL,
+            'close30': BASE_WEBHOOK_URL,
         };
 
         const modal = document.getElementById('modal');
@@ -91,15 +90,26 @@
         async function sendCommand(action) {
             const url = WEBHOOK_URLS[action];
             
-            // Should not happen now that the BASE_WEBHOOK_URL is set, but kept for robustness.
             if (!url || url.includes('YOUR_')) {
                 showModal('Error', `Webhook URL for ${action.toUpperCase()} is incomplete. Contact support.`);
                 return;
             }
 
+            // --- NEW: Prepare the JSON payload for the POST request ---
+            // Adafruit IO Webhook Receiver expects a JSON object with a "value" field.
+            const payload = {
+                value: action
+            };
+
             try {
-                // We use GET because the command is passed in the query parameter '?value=command'
-                const response = await fetch(url, { method: 'GET' }); 
+                // We now use POST and include the body with the command value
+                const response = await fetch(url, { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload) 
+                }); 
 
                 if (response.ok) {
                     const message = action === 'close30' 
