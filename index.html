@@ -52,12 +52,13 @@
         // --- IMPORTANT: BASE_WEBHOOK_URL is now configured with the URL provided by the user.
         const BASE_WEBHOOK_URL = 'https://io.adafruit.com/api/v2/webhooks/feed/hHhGwUpJbyLogeqKbWVnFz37Y1Py'; 
 
-        // The full URLs are constructed by appending the /raw?value=command structure.
+        // The full URLs are now constructed by appending the ?value=command query parameter directly 
+        // to the base Webhook Receiver URL (removing the invalid /raw path).
         const WEBHOOK_URLS = {
-            'open': BASE_WEBHOOK_URL + '/raw?value=open',
-            'close': BASE_WEBHOOK_URL + '/raw?value=close',
-            'stop': BASE_WEBHOOK_URL + '/raw?value=stop',
-            'close30': BASE_WEBHOOK_URL + '/raw?value=close30',
+            'open': BASE_WEBHOOK_URL + '?value=open',
+            'close': BASE_WEBHOOK_URL + '?value=close',
+            'stop': BASE_WEBHOOK_URL + '?value=stop',
+            'close30': BASE_WEBHOOK_URL + '?value=close30',
         };
 
         const modal = document.getElementById('modal');
